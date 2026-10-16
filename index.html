@@ -596,15 +596,6 @@ td{border-bottom-color:#18404f}tr:hover td{background:rgba(25,201,166,.07)}
 @media(max-width:900px){#appShell .navtab{border-right:1px solid #18404f;border-radius:999px;padding:8px 14px;white-space:nowrap}#appShell .navtab .ico{display:none}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<style id="estiloConexao">
-.conexao{margin-top:18px;border-top:1px solid #18404f;padding-top:12px;font-size:13px;color:#8eb3be}
-.conexao summary{cursor:pointer;color:#19c9a6;font-weight:600}
-.conexao p{margin:8px 0}
-.conexao label{display:block;margin:8px 0 3px;font-weight:600;font-size:12px;color:#7fe9d2}
-.conexao input{width:100%;box-sizing:border-box;padding:9px 11px;border:1.5px solid #2a5565;background:#0b2029;color:#e8f5f7;border-radius:8px;font:inherit;font-size:13px}
-.conexao-linha{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap}
-.conexao button{border:0;background:#19c9a6;color:#04202a;font-weight:700;border-radius:999px;padding:8px 16px;cursor:pointer}
-</style>
 </head>
 <body>
 
@@ -655,12 +646,6 @@ td{border-bottom-color:#18404f}tr:hover td{background:rgba(25,201,166,.07)}
         </div>
         <button type="submit" class="btn-entrar">Entrar</button>
       </form>
-      <details class="conexao" id="detConexao"><summary>Conexão com o banco de dados</summary>
-        <p>Informe a URL e a chave pública (anon) do projeto Supabase. Ficam guardadas só neste navegador.</p>
-        <label for="sbUrl">URL do projeto</label><input type="text" id="sbUrl" placeholder="https://xxxx.supabase.co" autocomplete="off">
-        <label for="sbKey">Chave pública (anon)</label><input type="text" id="sbKey" placeholder="eyJ..." autocomplete="off">
-        <div class="conexao-linha"><button type="button" id="btnSbSalvar">Salvar e conectar</button><span id="sbStatus"></span></div>
-      </details>
     </div>
 
     <div class="welcome-card" id="welcomeCard">
@@ -5723,14 +5708,16 @@ document.getElementById('cardPlanilha').addEventListener('click', () => showView
 showView('home');
 
 /* ===================== CONEXÃO COM O BANCO DE DADOS (Supabase) ===================== */
-// Preencha aqui a URL e a chave pública (anon) do projeto, ou informe na tela de login (fica salvo neste navegador).
+// URL e chave pública do projeto Supabase.
 // A chave anon é pública por desenho: a segurança está nas regras (RLS) do banco. NUNCA coloque a chave service_role aqui.
-const SUPABASE_CONFIG = { url: 'https://yoygjmisylpdywqpofik.supabase.co', anonKey: 'sb_publishable_u5Mz5EB583jt_GLTSyravw__wd9c-tI' };
+const SUPABASE_CONFIG = {
+  url: 'https://yoygjmisylpdywqpofik.supabase.co',
+  anonKey: 'sb_publishable_u5Mz5EB583jt_GLTSyravw__wd9c-tI'
+};
 const EMAIL_DOMINIO = 'paulus.app';   // o login vira <login>@paulus.app no Supabase Auth
 let supa = null;
 function iniciarSupabase(){
-  let cfg = SUPABASE_CONFIG;
-  if(!cfg.url || !cfg.anonKey){ try{ cfg = JSON.parse(localStorage.getItem('paulus_supabase_cfg') || 'null') || cfg; }catch(e){} }
+  const cfg = SUPABASE_CONFIG;
   if(cfg.url && cfg.anonKey && window.supabase && window.supabase.createClient){
     supa = window.supabase.createClient(cfg.url, cfg.anonKey, { auth: { persistSession: true, autoRefreshToken: true } });
   }
@@ -6025,14 +6012,13 @@ async function carregarSessao(){
     descricao: todas ? 'Você tem acesso a todas as abas do painel.' : 'Você tem acesso a: ' + rotuloAbas(abas) + '.' };
   return sessaoAtual;
 }
-function abrirConexao(){ const d = document.getElementById('detConexao'); if(d) d.open = true; }
 
 loginForm.addEventListener('submit', async function(e){
   e.preventDefault();
   esconderErroLogin();
   const usuario = usuarioInput.value.trim().toLowerCase(), senha = senhaInput.value;
   if(!usuario || !senha){ mostrarErroLogin('Preencha usuário e senha para continuar.'); return; }
-  if(!supa){ mostrarErroLogin('Conecte o painel ao banco de dados antes de entrar (seção "Conexão com o banco de dados", abaixo).'); abrirConexao(); return; }
+  if(!supa){ mostrarErroLogin('Não foi possível conectar ao banco de dados. Verifique a internet e recarregue a página.'); return; }
   const email = usuario.includes('@') ? usuario : `${usuario}@${EMAIL_DOMINIO}`;
   const { error } = await supa.auth.signInWithPassword({ email, password: senha });
   if(error){ mostrarErroLogin('Usuário ou senha inválidos. Tente novamente.'); senhaInput.value = ''; senhaInput.focus(); return; }
@@ -6059,20 +6045,6 @@ function abrirPainel(){
   }
 }
 btnAcessarPainel.addEventListener('click', abrirPainel);
-
-/* painel de conexão com o banco (URL e chave pública, guardadas só neste navegador) */
-(function(){
-  const url = document.getElementById('sbUrl'), key = document.getElementById('sbKey'), st = document.getElementById('sbStatus');
-  url.value = CFG_SUPABASE.url || ''; key.value = CFG_SUPABASE.anonKey || '';
-  if(supa){ try{ st.textContent = 'Conectado a ' + new URL(CFG_SUPABASE.url).host; }catch(e){ st.textContent = 'Conectado.'; } }
-  else { st.textContent = window.supabase ? 'Informe a URL e a chave pública para conectar.' : 'Não foi possível carregar a biblioteca do Supabase. Verifique a internet.'; abrirConexao(); }
-  document.getElementById('btnSbSalvar').addEventListener('click', () => {
-    const u = url.value.trim().replace(/\/+$/, ''), k = key.value.trim();
-    if(!/^https?:\/\/\S+$/.test(u) || k.length < 20){ st.textContent = 'Confira a URL do projeto e a chave pública (anon).'; return; }
-    try{ localStorage.setItem('paulus_supabase_cfg', JSON.stringify({ url: u, anonKey: k })); }catch(e){}
-    location.reload();
-  });
-})();
 
 /* restaura a sessão do Supabase ao abrir a página */
 (async function restaurarSessao(){
